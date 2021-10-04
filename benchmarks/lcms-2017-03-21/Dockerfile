@@ -14,7 +14,7 @@
 #
 ################################################################################
 
-FROM gcr.io/oss-fuzz-base/base-builder@sha256:1b6a6993690fa947df74ceabbf6a1f89a46d7e4277492addcd45a8525e34be5a
+FROM gcr.io/oss-fuzz-base/base-builder
 
 RUN apt-get update && \
     apt-get install -y \
@@ -25,7 +25,7 @@ RUN apt-get update && \
 
 RUN git clone https://github.com/mm2/Little-CMS.git
 
-RUN wget -qO $OUT/cms_transform_fuzzer.dict \
+RUN wget -qO $OUT/fuzz-target.dict \
     https://raw.githubusercontent.com/google/fuzzing/master/dictionaries/icc.dict
 COPY cms_transform_fuzzer.cc build.sh $SRC/
 ADD seeds /opt/seeds

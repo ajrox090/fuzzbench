@@ -21,12 +21,7 @@ from test_libs import utils as test_utils
 
 INSTANCE_NAME = 'instance-a'
 ZONE = 'zone-a'
-MACHINE_TYPE = 'my-machine-type'
-CONFIG = {
-    'cloud_compute_zone': ZONE,
-    'service_account': 'blah',
-    'runner_machine_type': MACHINE_TYPE
-}
+CONFIG = {'cloud_compute_zone': ZONE, 'service_account': 'blah'}
 
 
 def test_create_instance():
@@ -61,8 +56,8 @@ def _get_expected_create_runner_command(is_preemptible):
         '--image-project=cos-cloud',
         '--zone=zone-a',
         '--scopes=cloud-platform',
-        '--machine-type=my-machine-type',
         '--no-address',
+        '--machine-type=n1-standard-1',
         '--boot-disk-size=30GB',
     ]
     if is_preemptible:

@@ -37,10 +37,10 @@ if not experiment_utils.is_local_experiment():
 else:
     import experiment.build.local_build as buildlib
 
-# FIXME: Use 10 as default quota.
+# FIXME: Make this configurable for users with the default quota of 10.
 # Even though it says queueing happen, we end up exceeding limits on "get", so
 # be conservative. Use 30 for now since this is limit for FuzzBench service.
-DEFAULT_MAX_CONCURRENT_BUILDS = 30
+MAX_CONCURRENT_BUILDS = 30
 
 # Build fail retries and wait interval.
 NUM_BUILD_RETRIES = 3
@@ -89,17 +89,13 @@ def build_measurer(benchmark: str) -> bool:
         return False
 
 
-def build_all_measurers(
-        benchmarks: List[str],
-        num_concurrent_builds: int = DEFAULT_MAX_CONCURRENT_BUILDS
-) -> List[str]:
+def build_all_measurers(benchmarks: List[str]) -> List[str]:
     """Build measurers for each benchmark in |benchmarks| in parallel
     Returns a list of benchmarks built successfully."""
     logger.info('Building measurers.')
     filesystem.recreate_directory(build_utils.get_coverage_binaries_dir())
     build_measurer_args = [(benchmark,) for benchmark in benchmarks]
-    successful_calls = retry_build_loop(build_measurer, build_measurer_args,
-                                        num_concurrent_builds)
+    successful_calls = retry_build_loop(build_measurer, build_measurer_args)
     logger.info('Done building measurers.')
     # Return list of benchmarks (like the list we were passed as an argument)
     # instead of returning a list of tuples each containing a benchmark.
@@ -122,14 +118,12 @@ def split_successes_and_failures(inputs: List,
     return successes, failures
 
 
-def retry_build_loop(build_func: Callable, inputs: List[Tuple],
-                     num_concurrent_builds: int) -> List:
+def retry_build_loop(build_func: Callable, inputs: List[Tuple]) -> List:
     """Calls |build_func| in parallel on |inputs|. Repeat on failures up to
     |NUM_BUILD_RETRIES| times. Returns the list of inputs that |build_func| was
     called successfully on."""
     successes = []
-    logs.info('Concurrent builds: %d.', num_concurrent_builds)
-    with mp_pool.ThreadPool(num_concurrent_builds) as pool:
+    with mp_pool.ThreadPool(MAX_CONCURRENT_BUILDS) as pool:
         for _ in range(NUM_BUILD_RETRIES):
             logs.info('Building using (%s): %s', build_func, inputs)
             results = pool.starmap(build_func, inputs)
@@ -165,11 +159,8 @@ def build_fuzzer_benchmark(fuzzer: str, benchmark: str) -> bool:
     return True
 
 
-def build_all_fuzzer_benchmarks(
-        fuzzers: List[str],
-        benchmarks: List[str],
-        num_concurrent_builds: int = DEFAULT_MAX_CONCURRENT_BUILDS
-) -> List[str]:
+def build_all_fuzzer_benchmarks(fuzzers: List[str],
+                                benchmarks: List[str]) -> List[str]:
     """Build fuzzer,benchmark images for all pairs of |fuzzers| and |benchmarks|
     in parallel. Returns a list of fuzzer,benchmark pairs that built
     successfully."""
@@ -180,8 +171,7 @@ def build_all_fuzzer_benchmarks(
     # TODO(metzman): Use an asynchronous unordered map variant to schedule
     # eagerly.
     successful_calls = retry_build_loop(build_fuzzer_benchmark,
-                                        build_fuzzer_benchmark_args,
-                                        num_concurrent_builds)
+                                        build_fuzzer_benchmark_args)
     logger.info('Done building fuzzer benchmarks.')
     return successful_calls
 
@@ -202,19 +192,10 @@ def main():
                         help='Fuzzer names.',
                         nargs='+',
                         required=True)
-
-    parser.add_argument('-n',
-                        '--num-concurrent-builds',
-                        help='Max concurrent builds allowed.',
-                        type=int,
-                        default=DEFAULT_MAX_CONCURRENT_BUILDS,
-                        required=False)
-
     logs.initialize()
     args = parser.parse_args()
 
-    build_all_fuzzer_benchmarks(args.fuzzers, args.benchmarks,
-                                args.num_concurrent_builds)
+    build_all_fuzzer_benchmarks(args.fuzzers, args.benchmarks)
 
     return 0
 

@@ -19,13 +19,3 @@ project: systemd
 unsupported_fuzzers:
   - aflcc
   - klee
-  - aflplusplus_cmplog_double
-  - symcc_aflplusplus_single
-  - eclipser_aflplusplus
-  - aflplusplus_qemu_double
-  - aflplusplus_frida
-  - fuzzolic_aflplusplus_z3
-  - symqemu_aflplusplus
-  - fuzzolic_aflplusplus_fuzzy
-  - libafl
-  - fuzzolic_aflplusplus_z3dict

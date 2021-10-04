@@ -44,7 +44,7 @@ FUZZERS_DIR = os.path.join(utils.ROOT_DIR, 'fuzzers')
 OSS_FUZZ_PROJECTS_DIR = os.path.join(utils.ROOT_DIR, 'third_party', 'oss-fuzz',
                                      'projects')
 RESOURCES_DIR = os.path.join(utils.ROOT_DIR, 'experiment', 'resources')
-FUZZER_NAME_REGEX = re.compile(r'^[a-z][a-z0-9_]+$')
+FUZZER_NAME_REGEX = re.compile(r'^[a-z0-9_]+$')
 EXPERIMENT_CONFIG_REGEX = re.compile(r'^[a-z0-9-]{0,30}$')
 FILTER_SOURCE_REGEX = re.compile(r'('
                                  r'^\.git/|'
@@ -153,35 +153,40 @@ def validate_benchmarks(benchmarks: List[str]):
     benchmark_types = set()
     for benchmark in set(benchmarks):
         if benchmarks.count(benchmark) > 1:
-            raise ValidationError('Benchmark "%s" is included more than once.' %
-                                  benchmark)
+            raise Exception('Benchmark "%s" is included more than once.' %
+                            benchmark)
         # Validate benchmarks here. It's possible someone might run an
         # experiment without going through presubmit. Better to catch an invalid
         # benchmark than see it in production.
         if not benchmark_utils.validate(benchmark):
-            raise ValidationError('Benchmark "%s" is invalid.' % benchmark)
+            raise Exception('Benchmark "%s" is invalid.' % benchmark)
 
         benchmark_types.add(benchmark_utils.get_type(benchmark))
 
     if (benchmark_utils.BenchmarkType.CODE.value in benchmark_types and
             benchmark_utils.BenchmarkType.BUG.value in benchmark_types):
-        raise ValidationError(
+        raise Exception(
             'Cannot mix bug benchmarks with code coverage benchmarks.')
 
 
 def validate_fuzzer(fuzzer: str):
     """Parses and validates a fuzzer name."""
-    if not fuzzer_utils.validate(fuzzer):
-        raise ValidationError('Fuzzer: %s is invalid.' % fuzzer)
+    if not re.match(FUZZER_NAME_REGEX, fuzzer):
+        raise Exception(
+            'Fuzzer "%s" may only contain lowercase letters, numbers, '
+            'or underscores.' % fuzzer)
+
+    fuzzers_directories = get_directories(FUZZERS_DIR)
+    if fuzzer not in fuzzers_directories:
+        raise Exception('Fuzzer "%s" does not exist.' % fuzzer)
 
 
 def validate_experiment_name(experiment_name: str):
     """Validate |experiment_name| so that it can be used in creating
     instances."""
     if not re.match(EXPERIMENT_CONFIG_REGEX, experiment_name):
-        raise ValidationError(
-            'Experiment name "%s" is invalid. Must match: "%s"' %
-            (experiment_name, EXPERIMENT_CONFIG_REGEX.pattern))
+        raise Exception('Experiment name "%s" is invalid. Must match: "%s"' %
+                        (experiment_name, EXPERIMENT_CONFIG_REGEX.pattern))
 
 
 def set_up_experiment_config_file(config):
@@ -196,8 +201,9 @@ def set_up_experiment_config_file(config):
 
 def check_no_uncommitted_changes():
     """Make sure that there are no uncommitted changes."""
-    if subprocess.check_output(['git', 'diff'], cwd=utils.ROOT_DIR):
-        raise ValidationError('Local uncommitted changes found, exiting.')
+    assert not subprocess.check_output(
+        ['git', 'diff'],
+        cwd=utils.ROOT_DIR), 'Local uncommitted changes found, exiting.'
 
 
 def get_git_hash():
@@ -216,8 +222,7 @@ def start_experiment(  # pylint: disable=too-many-arguments
         no_seeds=False,
         no_dictionaries=False,
         oss_fuzz_corpus=False,
-        allow_uncommitted_changes=False,
-        concurrent_builds=None):
+        allow_uncommitted_changes=False):
     """Start a fuzzer benchmarking experiment."""
     if not allow_uncommitted_changes:
         check_no_uncommitted_changes()
@@ -234,14 +239,6 @@ def start_experiment(  # pylint: disable=too-many-arguments
     config['no_dictionaries'] = no_dictionaries
     config['oss_fuzz_corpus'] = oss_fuzz_corpus
     config['description'] = description
-    config['concurrent_builds'] = concurrent_builds
-    config['runner_machine_type'] = config.get('runner_machine_type',
-                                               'n1-standard-1')
-    config['runner_num_cpu_cores'] = config.get('runner_num_cpu_cores', 1)
-    # Note this is only used if runner_machine_type is None.
-    # 12GB is just the amount that KLEE needs, use this default to make KLEE
-    # experiments easier to run.
-    config['runner_memory'] = config.get('runner_memory', '12GB')
     return start_experiment_from_full_config(config)
 
 
@@ -254,8 +251,7 @@ def start_experiment_from_full_config(config):
     local_experiment = config.get('local_experiment', False)
     if not local_experiment:
         if 'POSTGRES_PASSWORD' not in os.environ:
-            raise ValidationError(
-                'Must set POSTGRES_PASSWORD environment variable.')
+            raise Exception('Must set POSTGRES_PASSWORD environment variable.')
         gcloud.set_default_project(config['cloud_project'])
 
     start_dispatcher(config, experiment_utils.CONFIG_DIR)
@@ -430,7 +426,7 @@ class GoogleCloudDispatcher(BaseDispatcher):
                                           gcloud.InstanceType.DISPATCHER,
                                           self.config,
                                           startup_script=startup_script.name):
-                raise RuntimeError('Failed to create dispatcher.')
+                raise Exception('Failed to create dispatcher.')
             logs.info('Started dispatcher with instance name: %s',
                       self.instance_name)
 
@@ -504,10 +500,6 @@ def main():
                         '--description',
                         help='Description of the experiment.',
                         required=False)
-    parser.add_argument('-cb',
-                        '--concurrent-builds',
-                        help='Max concurrent builds allowed.',
-                        required=False)
 
     all_fuzzers = fuzzer_utils.get_fuzzer_names()
     parser.add_argument('-f',
@@ -545,13 +537,6 @@ def main():
     args = parser.parse_args()
     fuzzers = args.fuzzers or all_fuzzers
 
-    concurrent_builds = args.concurrent_builds
-    if concurrent_builds is not None:
-        if not concurrent_builds.isdigit():
-            parser.error(
-                "The concurrent build argument must be a positive number")
-        concurrent_builds = int(concurrent_builds)
-
     start_experiment(args.experiment_name,
                      args.experiment_config,
                      args.benchmarks,
@@ -560,8 +545,7 @@ def main():
                      no_seeds=args.no_seeds,
                      no_dictionaries=args.no_dictionaries,
                      oss_fuzz_corpus=args.oss_fuzz_corpus,
-                     allow_uncommitted_changes=args.allow_uncommitted_changes,
-                     concurrent_builds=concurrent_builds)
+                     allow_uncommitted_changes=args.allow_uncommitted_changes)
     return 0
 
 

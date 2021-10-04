@@ -14,7 +14,7 @@
 #
 ################################################################################
 
-FROM gcr.io/oss-fuzz-base/base-builder@sha256:1b6a6993690fa947df74ceabbf6a1f89a46d7e4277492addcd45a8525e34be5a
+FROM gcr.io/oss-fuzz-base/base-builder
 
 RUN apt-get update && \
     apt-get install -y \
@@ -28,6 +28,6 @@ RUN apt-get update && \
 
 RUN git clone https://github.com/OSGeo/PROJ
 
-RUN wget -qO $OUT/standard_fuzzer.dict \
+RUN wget -qO $OUT/fuzz-target.dict \
     https://raw.githubusercontent.com/google/fuzzing/master/dictionaries/proj4.dict
 COPY build.sh $SRC/

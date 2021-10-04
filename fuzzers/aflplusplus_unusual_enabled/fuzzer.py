@@ -22,12 +22,13 @@
 
 import os
 
-from fuzzers.aflplusplus_unusual_disabled import fuzzer as aflplusplus_fuzzer
+from fuzzers.aflplusplus import fuzzer as aflplusplus_fuzzer
 
 
 def build():  # pylint: disable=too-many-branches,too-many-statements
     """Build benchmark."""
-    aflplusplus_fuzzer.build('tracepc', 'dict2file', 'unusual')
+    os.environ['AFL_LLVM_UNUSUAL_VALUES'] = '1'
+    aflplusplus_fuzzer.build('classic', 'dict2file')
 
 
 def fuzz(input_corpus, output_corpus, target_binary):

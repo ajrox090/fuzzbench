@@ -95,16 +95,17 @@ def test_run_requested_experiment(mocked_get_requested_experiments,
         'vorbis-2017-12-11',
         'woff2-2016-05-06',
     ]
-    expected_call = mock.call(expected_experiment_name,
-                              expected_config_file,
-                              expected_benchmarks,
-                              expected_fuzzers,
-                              description='Test experiment',
-                              oss_fuzz_corpus=True)
+    expected_calls = [
+        mock.call(expected_experiment_name,
+                  expected_config_file,
+                  expected_benchmarks,
+                  expected_fuzzers,
+                  description='Test experiment',
+                  oss_fuzz_corpus=True)
+    ]
     start_experiment_call_args = mocked_start_experiment.call_args_list
     assert len(start_experiment_call_args) == 1
-    start_experiment_call_args = start_experiment_call_args[0]
-    assert start_experiment_call_args == expected_call
+    assert start_experiment_call_args == expected_calls
 
 
 @pytest.mark.parametrize(
@@ -142,28 +143,16 @@ def test_validate_experiment_name(name, expected_result):
         ({
             'fuzzers': ['afl']
         }, False),
-        # Invalid experiment name for request.
+        # Invalid experiment.
         ({
             'experiment': 'invalid',
             'fuzzers': ['afl']
         }, False),
-        # Invalid experiment name.
-        ({
-            'experiment': 'i' * 100,
-            'fuzzers': ['afl']
-        }, False),
-        # Nonexistent fuzzers.
+        # Invalid fuzzers.
         ({
             'experiment': EXPERIMENT,
-            'fuzzers': ['nonexistent-fuzzer']
+            'fuzzers': ['1']
         }, False),
-        # Invalid fuzzers.
-        (
-            {
-                'experiment': EXPERIMENT,
-                'fuzzers': ['1']  # Need to make this exist.
-            },
-            False),
         # Invalid description.
         ({
             'experiment': EXPERIMENT,

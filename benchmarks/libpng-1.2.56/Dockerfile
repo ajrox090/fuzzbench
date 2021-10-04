@@ -14,7 +14,7 @@
 #
 ################################################################################
 
-FROM gcr.io/oss-fuzz-base/base-builder@sha256:1b6a6993690fa947df74ceabbf6a1f89a46d7e4277492addcd45a8525e34be5a
+FROM gcr.io/oss-fuzz-base/base-builder
 
 RUN apt-get update && \
     apt-get install -y \
@@ -28,7 +28,7 @@ RUN apt-get update && \
 RUN wget \
     https://downloads.sourceforge.net/project/libpng/libpng12/older-releases/1.2.56/libpng-1.2.56.tar.gz
 
-RUN wget -qO $OUT/libpng_read_fuzzer.dict \
+RUN wget -qO $OUT/fuzz-target.dict \
     https://raw.githubusercontent.com/google/fuzzing/master/dictionaries/png.dict
 ADD seeds /opt/seeds
 COPY * $SRC/

@@ -155,19 +155,16 @@ def log(logger, severity, message, *args, extras=None):
     """Log a message with severity |severity|. If using stack driver logging
     then |extras| is also logged (in addition to default extras)."""
     message = str(message)
-    if args:
-        message = message % args
-
     if utils.is_local():
         if extras:
             message += ' Extras: ' + str(extras)
-        logging.log(severity, message)
+        logging.log(severity, message, *args)
         return
-
     if logger is None:
         logger = _default_logger
     assert logger
-
+    if args:
+        message = message % args
     struct_message = {
         'message': message,
     }
